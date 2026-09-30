@@ -1,0 +1,390 @@
+[
+  {
+    "id": 0,
+    "video": "data/video/dataset1/20260913_iPhone15pro_7011_LED.mp4",
+    "timestamp_s": 8.2,
+    "text": "7011",
+    "box": [
+      0,
+      0,
+      49,
+      39
+    ],
+    "bus_box": [
+      -845,
+      -754,
+      55,
+      531
+    ],
+    "search_box": [
+      -845,
+      -433,
+      55,
+      531
+    ],
+    "expected": "",
+    "note": "측면 PRINT 7011 전체를 8.2초에 읽음."
+  },
+  {
+    "id": 2,
+    "video": "data/video/dataset1/20260915_갤럭시S24+_171_LED_02.mp4",
+    "timestamp_s": 1.8,
+    "text": "171",
+    "box": [
+      0,
+      0,
+      54,
+      51
+    ],
+    "bus_box": [
+      -1018,
+      -1115,
+      62,
+      557
+    ],
+    "search_box": [
+      -1018,
+      -697,
+      62,
+      557
+    ],
+    "expected": "",
+    "note": "측면 PRINT 171 전체를 읽음."
+  },
+  {
+    "id": 4,
+    "video": "data/video/dataset1/20260915_갤럭시quantam3_6714_LED_측면.mp4",
+    "timestamp_s": 2.4,
+    "text": "6714",
+    "box": [
+      0,
+      0,
+      233,
+      158
+    ],
+    "bus_box": [
+      -243,
+      -444,
+      609,
+      746
+    ],
+    "search_box": [
+      -243,
+      -147,
+      609,
+      746
+    ],
+    "expected": "",
+    "note": "측면 LED 6714 전체를 읽음."
+  },
+  {
+    "id": 5,
+    "video": "data/video/dataset1/20260916_iPhone15pro_M7731_PRINT_측면.mov",
+    "timestamp_s": 10.8,
+    "text": "M7731",
+    "box": [
+      0,
+      0,
+      435,
+      249
+    ],
+    "bus_box": [
+      -346,
+      -416,
+      679,
+      1016
+    ],
+    "search_box": [
+      -346,
+      -58,
+      679,
+      1016
+    ],
+    "expected": "",
+    "note": "측면 PRINT M7731 전체가 명확히 보임."
+  },
+  {
+    "id": 7,
+    "video": "data/video/dataset1/20260916_갤럭시quantum3_7011_LED_빛번짐.mp4",
+    "timestamp_s": 4.6,
+    "text": "7011",
+    "box": [
+      0,
+      0,
+      42,
+      35
+    ],
+    "bus_box": [
+      -78,
+      -897,
+      1002,
+      664
+    ],
+    "search_box": [
+      -78,
+      -507,
+      1002,
+      664
+    ],
+    "expected": "",
+    "note": "측면 PRINT 7011 전체를 읽음."
+  },
+  {
+    "id": 8,
+    "video": "data/video/dataset1/20260916_갤럭시quantum3_7611_LED.mp4",
+    "timestamp_s": 5.6,
+    "text": "7611",
+    "box": [
+      0,
+      0,
+      59,
+      46
+    ],
+    "bus_box": [
+      -81,
+      -802,
+      999,
+      634
+    ],
+    "search_box": [
+      -81,
+      -443,
+      999,
+      634
+    ],
+    "expected": "",
+    "note": "측면 PRINT 7611 전체를 읽음."
+  },
+  {
+    "id": 9,
+    "video": "data/video/dataset2/20260917_갤럭시quantum3_마포07_PRINT_측면_02.mp4",
+    "timestamp_s": 7.2,
+    "text": "07",
+    "box": [
+      0,
+      0,
+      44,
+      63
+    ],
+    "bus_box": [
+      -385,
+      -438,
+      400,
+      468
+    ],
+    "search_box": [
+      -385,
+      -212,
+      400,
+      468
+    ],
+    "expected": "",
+    "note": "측면 PRINT 07 전체를 읽음. 한글 접두어 생략 허용."
+  },
+  {
+    "id": 19,
+    "video": "data/video/dataset1/20260914_갤럭시quantum3_721_LED_빛번짐.mp4",
+    "timestamp_s": 1.2,
+    "text": "7284",
+    "box": [
+      0,
+      0,
+      93,
+      60
+    ],
+    "bus_box": [
+      -629,
+      -492,
+      97,
+      165
+    ],
+    "search_box": [
+      -629,
+      -328,
+      97,
+      165
+    ],
+    "expected": "likely_registration_plate",
+    "note": "등록 번호판의 7284를 노선으로 인식. 현행 색상/위치 필터를 통과함."
+  },
+  {
+    "id": 24,
+    "video": "data/video/dataset2/20260921_갤럭시S25U_721_LED.mp4",
+    "timestamp_s": 1.8,
+    "text": "1577",
+    "box": [
+      0,
+      0,
+      21,
+      11
+    ],
+    "bus_box": [
+      -118,
+      -98,
+      31,
+      197
+    ],
+    "search_box": [
+      -118,
+      -25,
+      31,
+      197
+    ],
+    "expected": "",
+    "note": "rear advertisement phone prefix"
+  },
+  {
+    "id": 25,
+    "video": "data/video/dataset2/20260921_갤럭시S25U_721_LED.mp4",
+    "timestamp_s": 1.6,
+    "text": "9350",
+    "box": [
+      0,
+      0,
+      30,
+      14
+    ],
+    "bus_box": [
+      -94,
+      -195,
+      65,
+      124
+    ],
+    "search_box": [
+      -94,
+      -116,
+      65,
+      124
+    ],
+    "expected": "likely_registration_plate",
+    "note": "rear registration plate"
+  },
+  {
+    "id": 26,
+    "video": "data/video/dataset1/20260916_갤럭시quantum3_서대문03_LED_불량.mp4",
+    "timestamp_s": 4.2,
+    "text": "03",
+    "box": [
+      0,
+      0,
+      26,
+      34
+    ],
+    "bus_box": [
+      -76,
+      -362,
+      528,
+      248
+    ],
+    "search_box": [
+      -76,
+      -210,
+      528,
+      248
+    ],
+    "expected": "",
+    "note": "bright side PRINT on green body must remain eligible",
+    "source_box": [
+      201,
+      884,
+      227,
+      918
+    ]
+  },
+  {
+    "id": 27,
+    "video": "data/video/dataset2/20260917_갤럭시quantum3_6713_LED.mp4",
+    "timestamp_s": 5.0,
+    "text": "6713",
+    "box": [
+      0,
+      0,
+      27,
+      22
+    ],
+    "bus_box": [
+      -105,
+      -186,
+      269,
+      154
+    ],
+    "search_box": [
+      -105,
+      -101,
+      269,
+      154
+    ],
+    "expected": "",
+    "note": "bright side LED on dark background must remain eligible",
+    "source_box": [
+      657,
+      685,
+      684,
+      707
+    ]
+  },
+  {
+    "id": 28,
+    "video": "data/video/dataset2/20260917_갤럭시quantum3_6713_LED.mp4",
+    "timestamp_s": 5.2,
+    "text": "6713",
+    "box": [
+      0,
+      0,
+      27,
+      19
+    ],
+    "bus_box": [
+      -136,
+      -218,
+      302,
+      175
+    ],
+    "search_box": [
+      -136,
+      -120,
+      302,
+      175
+    ],
+    "expected": "",
+    "note": "bright side LED on dark background must remain eligible",
+    "source_box": [
+      708,
+      691,
+      735,
+      710
+    ]
+  },
+  {
+    "id": 29,
+    "video": "data/video/dataset2/20260917_갤럭시quantum3_6713_LED.mp4",
+    "timestamp_s": 5.6,
+    "text": "6713",
+    "box": [
+      0,
+      0,
+      46,
+      27
+    ],
+    "bus_box": [
+      -309,
+      -293,
+      216,
+      238
+    ],
+    "search_box": [
+      -309,
+      -161,
+      216,
+      238
+    ],
+    "expected": "",
+    "note": "bright side LED on dark background must remain eligible",
+    "source_box": [
+      864,
+      689,
+      910,
+      716
+    ]
+  }
+]
