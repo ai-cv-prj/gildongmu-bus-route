@@ -1,0 +1,30 @@
+# 파일명: pyproject.toml
+# 설명: core/ 아래 패키지의 설치 설정과 프로젝트 의존성을 관리할 파일.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gildongmu-bus-route"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "torch==2.7.1",
+    "torchvision==0.22.1",
+    "timm==0.9.16",
+    "pytorch-lightning==2.5.1",
+    "Pillow>=10,<12",
+    "numpy>=1.26,<3",
+    "PyYAML>=6,<7",
+    "nltk>=3.8,<4",
+    "lmdb>=1.4,<2",
+    "imageio-ffmpeg==0.6.0",
+    "ultralytics==8.3.203",
+    "opencv-python==4.11.0.86",
+    "scikit-image==0.25.2",
+    "lap==0.5.12",
+]
+
+[tool.setuptools.packages.find]
+where = ["core"]

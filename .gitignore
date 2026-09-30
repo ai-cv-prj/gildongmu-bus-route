@@ -1,0 +1,45 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 가상환경
+venv/
+.venv/
+
+# 환경변수/설정 (민감 정보)
+.env
+.env.local
+
+# IDE / 에디터
+.vscode/
+.idea/
+*.swp
+
+# 배포/빌드 산출물
+build/
+dist/
+*.egg-info/
+
+# 테스트/커버리지
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# OS 관련
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+log/
+
+# 기타
+output/
+workbench/
+data/
+.cache/
+/.claude/settings.local.json
