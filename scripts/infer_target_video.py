@@ -19,6 +19,8 @@ from bus_route.target import TargetMatcher,exact_route,route_aliases
 from bus_route.route_evidence import (crop_rejection, text_rejection, context_boxes,
                                       context_rejection, EVIDENCE_FILTER)
 from bus_route.video import sample_frames,latest_frames,video_writer
+from bus_route.region_recovery import (recovery_boxes, confirmation_box, is_extension,
+                                      RECOVERY_POLICY)
 from infer_video import annotate,save_csv,summarize_tracks
 
 
@@ -60,6 +62,55 @@ def select_candidates(rgb, items, bus_index, buses, max_candidates):
     valid_count=sum(p['eligible'] for p in checked)
     # 아직 OCR하지 않은 유효 후보가 있으면 여전히 incomplete로 보류한다.
     return checked[:max_candidates],len(checked),valid_count,valid_count>max_candidates
+
+
+def recover_regions(rgb,current,buses,recognizer):
+    """Require matching OCR of two larger crops before replacing a partial source."""
+    jobs=[]
+    for j,bus in enumerate(buses):
+        sources=[p for p in current if p['bus_index']==j and recovery_boxes(p,rgb.shape)]
+        sources.sort(key=lambda p:min(p['token_scores']),reverse=True)
+        for p in sources[:RECOVERY_POLICY['max_sources_per_bus']]:
+            for side,box in recovery_boxes(p,rgb.shape):
+                jobs.append((p,side,box))
+    confirmations=[]
+    for start in range(0,len(jobs),16):
+        chunk=jobs[start:start+16]
+        crops=[Image.fromarray(rgb[b:d,a:c]) for _,_,(a,b,c,d) in chunk]
+        for (source,side,box),pred in zip(chunk,recognizer.predict_batch(crops)):
+            check={'side':side,'box':box,**asdict(pred),'accepted':False}
+            source.setdefault('recovery_checks',[]).append(check)
+            if not is_extension(source['text'],pred.text,pred.token_scores,side):continue
+            confirm=confirmation_box(box,side,source['text_box'],source['search_box'])
+            if confirm is not None:confirmations.append((source,side,box,pred,check,confirm))
+    accepted=[]
+    for start in range(0,len(confirmations),16):
+        chunk=confirmations[start:start+16]
+        crops=[Image.fromarray(rgb[b:d,a:c]) for *_,(a,b,c,d) in chunk]
+        for (source,side,box,pred,check,confirm),second in zip(chunk,recognizer.predict_batch(crops)):
+            check['confirmation']={'box':confirm,**asdict(second)}
+            if second.text!=pred.text or not is_extension(source['text'],second.text,second.token_scores,side):continue
+            reason=crop_rejection(rgb,box,source['bus_box'],source['search_box'])
+            if not eligible_box(box,source['bus_index'],buses,rgb.shape):reason=reason or 'small_clipped_or_ambiguous_bus'
+            a,b,c,d=box
+            # A complete, independently re-read oblique word can be narrower than
+            # the unverified single-crop density limit. Keep a finite width floor.
+            if (c-a)/max(1,d-b)/len(pred.text)<RECOVERY_POLICY['min_extended_aspect_per_character']:
+                reason=reason or 'implausible_character_density'
+            item={**source,**asdict(pred),'text_box':box,'eligible':not reason,
+                  'rejection_reason':reason,'context_checks':[],'recovery_checks':[],
+                  'recovered_from':{'box':source['text_box'],'text':source['text'],'side':side}}
+            # Keep registration/phone rejection active on the expanded region too.
+            for context in context_boxes(item,rgb.shape):
+                a,b,c,d=context;cp=recognizer.predict_batch([Image.fromarray(rgb[b:d,a:c])])[0]
+                rejection=context_rejection(item['text'],cp.text,cp.token_scores)
+                item['context_checks'].append({'box':context,**asdict(cp),'rejection_reason':rejection})
+                if rejection:item['eligible']=False;item['rejection_reason']=rejection
+            if item['eligible']:
+                check['accepted']=True
+                source['eligible']=False;source['rejection_reason']='superseded_by_full_region'
+                accepted.append(item)
+    current.extend(accepted)
 
 
 def analyze(video,out,detector,recognizer,fps,target,alternatives=(),realtime=False,body_interval=.2,max_candidates=24,single_score=.98):
@@ -116,6 +167,7 @@ def analyze(video,out,detector,recognizer,fps,target,alternatives=(),realtime=Fa
                     if rejection:
                         item['eligible']=False
                         item['rejection_reason']=rejection
+            recover_regions(rgb,current,buses,recognizer)
             detector.sync();ocr_ms=(time.perf_counter()-t)*1000
             for j,bus in enumerate(buses):
                 complete=not bus['candidate_truncated'] and (not realtime or time.perf_counter()-meta['replay_origin']-timestamp<=.3)
@@ -152,7 +204,7 @@ def analyze(video,out,detector,recognizer,fps,target,alternatives=(),realtime=Fa
     if not frames:raise RuntimeError('분석 프레임 없음')
     wall=time.perf_counter()-started
     save_csv(out/'frames.csv',frames,list(frames[0]))
-    save_csv(out/'predictions.csv',predictions,['sample_index','timestamp_s','track_id','bus_index','candidate_index','bus_box','text_box','search_zone','search_box','eligible','rejection_reason','text','token_scores','elapsed_ms','context_checks'])
+    save_csv(out/'predictions.csv',predictions,['sample_index','timestamp_s','track_id','bus_index','candidate_index','bus_box','text_box','search_zone','search_box','eligible','rejection_reason','text','token_scores','elapsed_ms','context_checks','recovery_checks','recovered_from'])
     save_csv(out/'decisions.csv',decisions,['sample_index','timestamp_s','track_id','target_route','state','reason','support_samples','conflicts'])
     times=[r['pipeline_ms'] for r in frames]
     matches=[p for p in predictions if exact_route(p['text'],target)]
@@ -213,6 +265,7 @@ def main():
                                  'same_track_conflict':'recent 1.2s; strong >=.9 or repeated >=.75 veto; single weak requires 3 full matches with distinguishing token >=.97',
                                  'implicit_competitors':'one-character difference, supported M/N prefix and A/B suffix; explicit alternatives take precedence'},
               'evidence_filter':EVIDENCE_FILTER,
+              'region_recovery':RECOVERY_POLICY,
               'model_sha256':{x.name:hashlib.sha256(x.read_bytes()).hexdigest() for x in [ROOT/'.cache/yolo11n.pt',ROOT/'.cache/craft_mlt_25k.pth']}}
     (args.output/'settings.json').write_text(json.dumps(settings,ensure_ascii=False,indent=2))
     (args.output/'environment.txt').write_text(subprocess.check_output([str(ROOT/'.venv/bin/python'),'-m','pip','freeze'],text=True))
