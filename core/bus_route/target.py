@@ -33,16 +33,21 @@ def competing_route(text, target, alternatives=()):
     if exact_route(text,target): return False
     if any(text in route_aliases(r) for r in alternatives): return True
     key=re.sub(r'^[가-힣]+','',target)
-    # API 후보가 없는 실험에서는 한 글자 차이의 혼동 번호를 감시한다.
+    # API 후보가 없는 실험에서도 한 글자 차이와 더 긴 경쟁 번호를 감시한다.
     # A/B는 이 실험의 지원 접미사다. 전국 노선 형식에 대한 주장이 아니다.
     # 명시적인 target/alternatives는 위의 alias 비교가 우선한다.
     valid = re.fullmatch(r'(?:M|N)?[0-9]+[AB]?(?:-[0-9]+)?', text)
-    return bool(valid and len(text)==len(key) and sum(a!=b for a,b in zip(text,key))==1)
+    if not valid:return False
+    # 같은 버스에서 온전한 긴 번호를 본 뒤 일부 숫자만 보이면 짧은 목표의
+    # 독립적인 확증으로 사용하지 않는다. 짧은 OCR만 있을 때는 정상 판정을 유지한다.
+    if len(text)>len(key) and (text.startswith(key) or text.endswith(key)):
+        return True
+    return len(text)==len(key) and sum(a!=b for a,b in zip(text,key))==1
 
 
 class TargetMatcher:
     """실험용 일치 후보. 실제 탑승 확정기/보정된 확률이 아니다."""
-    def __init__(self, target, alternatives=(), window_s=1.2, min_samples=3, min_span_s=.4, single_score=None):
+    def __init__(self, target, alternatives=(), window_s=2.0, min_samples=3, min_span_s=.4, single_score=None):
         route_aliases(target)
         for route in alternatives: route_aliases(route)
         if any(route != target and route_aliases(target) & route_aliases(route) for route in alternatives):
@@ -77,12 +82,17 @@ class TargetMatcher:
                 samples.popleft()
             if not samples:del state['rivals'][text]
         good=False;partial=False;ambiguous=False;good_scores=None;single_good=False
+        key=re.sub(r'^[가-힣]+','',self.target)
         for obs in observations:
             text=obs['text'];q=token_quality(obs.get('token_scores',[]))
             if not obs.get('eligible',True):
                 ambiguous |= exact_route(text,self.target)
                 continue
-            if competing_route(text,self.target,self.alternatives) and q>=.75:
+            # 암묵적으로 찾은 긴 번호는 한 번의 약한 OCR 때문에 온전한 목표
+            # 한 프레임을 잃지 않도록 .9 이상만 경쟁 근거로 삼는다.
+            explicit=any(text in route_aliases(r) for r in self.alternatives)
+            rival_score=.9 if len(text)>len(key) and not explicit else .75
+            if competing_route(text,self.target,self.alternatives) and q>=rival_score:
                 samples=state['rivals'].setdefault(text,deque())
                 if samples and samples[-1][0]==timestamp:
                     samples[-1]=(timestamp,max(q,samples[-1][1]))
@@ -102,7 +112,6 @@ class TargetMatcher:
             state['hits'].append((timestamp,good_scores))
         enough=good and len(state['hits'])>=self.min_samples and timestamp-state['hits'][0][0]>=self.min_span_s-1e-6
         blocked=[]
-        key=re.sub(r'^[가-힣]+','',self.target)
         for rival,samples in state['rivals'].items():
             # 높은 점수의 경쟁 번호 또는 서로 다른 프레임의 반복 경쟁은 보류.
             strong=max(q for _,q in samples)>=.9 or len(samples)>=2
