@@ -24,20 +24,36 @@ class Prediction:
 class PARSeqRecognizer:
     """원본 문자열을 반환한다. 점수는 보정된 정답 확률이 아니다."""
 
-    def __init__(self, device: str = "cuda", cache_dir: Path = DEFAULT_CACHE):
+    def __init__(self, device: str = "cuda", cache_dir: Path = DEFAULT_CACHE, *,
+                 repo_dir: Path | None = None, weights_path: Path | None = None):
         self.device = torch.device(device)
         if self.device.type == "cuda" and not torch.cuda.is_available():
             raise RuntimeError("CUDA를 사용할 수 없습니다. GPU 환경을 확인하거나 --device cpu를 사용하세요.")
         if self.device.type not in {"cuda", "cpu"}:
             raise ValueError("지원 장치는 cuda 또는 cpu입니다.")
         self.cache_dir = Path(cache_dir).resolve()
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        torch.hub.set_dir(str(self.cache_dir))
-        # 공식 저장소 코드를 commit으로 고정하고 공식 가중치를 해시 검사하여 로드한다.
-        self.model = torch.hub.load(
-            f"baudm/parseq:{PARSEQ_COMMIT}", "parseq",
-            pretrained=True, trust_repo=True, skip_validation=True,
-        ).eval().to(self.device)
+        if (repo_dir is None) != (weights_path is None):
+            raise ValueError("repo_dir와 weights_path는 함께 지정해야 합니다.")
+        if repo_dir is not None:
+            # 통합앱(gildongmu-app)과 같은 로컬 고정 소스·가중치 로드. 내려받기 없음.
+            self.repo_dir = Path(repo_dir).resolve()
+            self.weights_path = Path(weights_path).resolve()
+            if not (self.repo_dir / "hubconf.py").is_file() or not self.weights_path.is_file():
+                raise FileNotFoundError("PARSeq 로컬 소스 또는 가중치가 없습니다.")
+            self.model = torch.hub.load(str(self.repo_dir), "parseq", pretrained=False,
+                                        source="local", trust_repo=True)
+            self.model.model.load_state_dict(torch.load(self.weights_path, map_location="cpu",
+                                                        weights_only=True))
+            self.model = self.model.eval().to(self.device)
+        else:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            torch.hub.set_dir(str(self.cache_dir))
+            self.weights_path = self.cache_dir / "checkpoints/parseq-bb5792a6.pt"
+            # 공식 저장소 코드를 commit으로 고정하고 공식 가중치를 해시 검사하여 로드한다.
+            self.model = torch.hub.load(
+                f"baudm/parseq:{PARSEQ_COMMIT}", "parseq",
+                pretrained=True, trust_repo=True, skip_validation=True,
+            ).eval().to(self.device)
         # Torch Hub가 내려받은 공식 저장소의 전처리를 사용한다.
         from strhub.data.module import SceneTextDataModule
 
@@ -80,7 +96,7 @@ class PARSeqRecognizer:
         return [Prediction(text, score, elapsed) for text,score in zip(labels,values)]
 
     def metadata(self) -> dict:
-        weights = self.cache_dir / "checkpoints/parseq-bb5792a6.pt"
+        weights = self.weights_path
         digest = hashlib.sha256()
         with weights.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):

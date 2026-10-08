@@ -1,6 +1,6 @@
 """Re-read pixels beside numeric regions; never complete strings from a target."""
 import re
-from bus_route.target import token_quality
+from .target import token_quality
 
 RECOVERY_POLICY = {
     'source_min_score': .9,
