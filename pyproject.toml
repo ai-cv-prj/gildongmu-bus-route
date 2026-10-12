@@ -8,22 +8,25 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gildongmu-bus-route"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = ">=3.12,<3.13"
+# 통합앱(gildongmu-app requirements.txt)과 같은 버전으로 고정한다.
+# 버전이 다르면 같은 코드라도 OCR·검출 결과가 달라지므로 앱과 함께 바꾼다.
 dependencies = [
-    "torch==2.7.1",
-    "torchvision==0.22.1",
+    "torch==2.14.0",
+    "torchvision==0.29.0",
     "timm==0.9.16",
     "pytorch-lightning==2.5.1",
-    "Pillow>=10,<12",
-    "numpy>=1.26,<3",
-    "PyYAML>=6,<7",
-    "nltk>=3.8,<4",
-    "lmdb>=1.4,<2",
+    "Pillow==12.3.0",
+    "numpy==2.5.3",
+    "scipy==1.18.1",
+    "PyYAML==6.0.3",
+    "nltk==3.10.3",
+    "lmdb==1.8.1",
     "imageio-ffmpeg==0.6.0",
-    "ultralytics==8.3.203",
-    "opencv-python==4.11.0.86",
-    "scikit-image==0.25.2",
-    "lap==0.5.12",
+    "ultralytics==8.4.152",
+    "opencv-python==5.0.0.93",
+    "scikit-image==0.26.0",
+    "lap==0.5.13",
 ]
 
 [tool.setuptools.packages.find]

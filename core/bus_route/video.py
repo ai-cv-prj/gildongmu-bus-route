@@ -5,6 +5,96 @@ import imageio_ffmpeg
 import numpy as np
 
 
+def native_frames(video: Path, max_fps=None):
+    """Yield actual decoded frames with source PTS; no fps filter or interpolation.
+
+    FFmpeg applies the same autorotation and HDR mapping as sample_frames. PPM
+    and showinfo are paired one-to-one, avoiding container nominal-fps guesses.
+    timestamp_s is relative to the first decoded PTS; source_pts_s is preserved.
+    """
+    import hashlib
+    import math
+    import queue
+    import re
+    import threading
+    filters, mode = color_filters(video)
+    if max_fps is not None and (not math.isfinite(max_fps) or max_fps <= 0):
+        raise ValueError('max_fps must be positive')
+    command = [imageio_ffmpeg.get_ffmpeg_exe(), '-hide_banner', '-loglevel', 'info',
+               '-copyts', '-i', str(video), '-map', '0:v:0', '-an', '-sn',
+               '-vf', filters+',showinfo', '-vsync', '0', '-threads', '2',
+               '-c:v', 'ppm', '-f', 'image2pipe', 'pipe:1']
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    infos = queue.Queue()
+    errors = []
+    pattern = re.compile(r'\bn:\s*(\d+)\s+pts:\s*(-?\d+)\s+pts_time:([\d.eE+\-]+)')
+    def drain():
+        try:
+            for line in iter(process.stderr.readline, b''):
+                line = line.decode('utf-8', errors='replace')
+                match = pattern.search(line)
+                if match:
+                    infos.put((int(match[1]), int(match[2]), float(match[3])))
+                errors.append(line)
+                del errors[:-30]
+        finally:
+            infos.put(None)
+    thread = threading.Thread(target=drain, daemon=True)
+    thread.start()
+    origin = None
+    previous = None
+    emitted_time = None
+    emitted_digest = None
+    try:
+        while True:
+            magic = process.stdout.readline()
+            if not magic:
+                break
+            if magic != b'P6\n':
+                raise RuntimeError('Invalid native RGB frame header')
+            w, h = map(int, process.stdout.readline().split())
+            if process.stdout.readline().strip() != b'255':
+                raise RuntimeError('Invalid native frame depth')
+            data = bytearray()
+            while len(data) < w*h*3:
+                chunk = process.stdout.read(w*h*3-len(data))
+                if not chunk:
+                    raise RuntimeError('Truncated native frame')
+                data.extend(chunk)
+            info = infos.get(timeout=30)
+            if info is None:
+                raise RuntimeError('Native PTS missing: '+''.join(errors))
+            index, pts, seconds = info
+            if previous is not None and seconds <= previous:
+                # Do not fabricate independent observations for duplicate PTS.
+                continue
+            if origin is None:
+                origin = seconds
+            previous = seconds
+            if max_fps is not None and emitted_time is not None and seconds-emitted_time < 1/max_fps-1e-6:
+                continue
+            digest = hashlib.blake2b(data, digest_size=16).digest()
+            if digest == emitted_digest:
+                continue
+            emitted_time, emitted_digest = seconds, digest
+            yield {'source_frame_index': index, 'source_pts': pts, 'source_pts_s': seconds,
+                   'timestamp_s': seconds-origin, 'color_mode': mode,
+                   'rgb': np.frombuffer(data, np.uint8).reshape(h, w, 3).copy()}
+        if process.wait(timeout=30):
+            raise RuntimeError('Native decoding failed: '+''.join(errors))
+    finally:
+        if process.poll() is None:
+            process.terminate()
+        process.stdout.close()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        thread.join(timeout=5)
+        process.stderr.close()
+
+
 def color_filters(video: Path, color: str = 'auto') -> tuple[str, str]:
     probe = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), '-hide_banner', '-i', str(video)],
                            capture_output=True, text=True)
@@ -21,8 +111,10 @@ def color_filters(video: Path, color: str = 'auto') -> tuple[str, str]:
 def sample_frames(video: Path, fps: float):
     """시각은 FFmpeg fps 필터 출력 기준이며 원본 프레임 PTS와 다를 수 있다."""
     filters, mode = color_filters(video)
+    # Select the same samples before costly per-frame HDR/color conversion.
+    # Keep the fps grid and replay clock unchanged; do not hide decode latency.
     reader = imageio_ffmpeg.read_frames(str(video), output_params=[
-        '-vf', f'{filters},fps=fps={fps}:start_time=0', '-threads', '2'])
+        '-vf', f'fps=fps={fps}:start_time=0,{filters}', '-threads', '2'])
     try:
         meta = next(reader)
         yield {**meta, 'color_mode': mode, 'sample_fps': fps}

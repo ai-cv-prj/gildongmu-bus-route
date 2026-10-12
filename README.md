@@ -3,12 +3,18 @@
 버스 영상에서 YOLO11n으로 버스를 추적하고 CRAFT와 PARSeq로 번호를 읽는 실험입니다.
 직접 지정한 crop 평가와 자동 영상 추론을 모두 지원합니다.
 
-현재 공개 가능한 평가 요약은 [결과 문서](docs/RESULTS.md)에서 확인합니다.
-원본 영상과 crop을 포함한 로컬 검토 페이지는 `workbench/index.html`에 있습니다.
+원본 영상과 crop을 포함한 로컬 검토 페이지는 `workbench/README.md`에 있습니다.
 
 ## 구성
 
 - `core/bus_route/recognizer.py`: 모델 로딩, 공식 전처리, 추론.
+- `core/bus_route/pipeline.py`: 통합앱과 같은 프레임 단위 버스 번호 인식 경로.
+  버스 검출 → 번호 표시 영역 검출 → PARSeq → 목표 노선 판정 순서로 실행합니다.
+  - `evidence.py`: 후보 선택, 번호 영역 복구, 중복 버스 후보 복구 규칙(영상 평가 실행기와 공유).
+  - `observed.py`: 목표가 아닌 다른 버스 번호의 반복 확인.
+  - `continuity.py`: 검출기 ID가 사라지거나 바뀌어도 같은 차량으로 이어 붙이기.
+  - `led_diagnostics.py`: LED 표시기 주사 누락 진단(기록 전용, 판정에 영향 없음).
+  - `models.py`, `base.py`: 버스·번호 영역 검출기와 공통 입출력 형식.
 - `scripts/extract_crops.py`: 원본 영상 → 프레임/crop → 정답 CSV 기록.
 - `scripts/evaluate.py`: 단일 이미지 또는 CSV 목록 추론·평가.
 - `data/video/`, `data/crops/`, `data/annotations.csv`: 원본, crop, 라벨.
@@ -18,14 +24,18 @@
 
 ## 설치
 
-프로젝트 루트에서 기존 Python 3.10 가상환경을 사용합니다.
-RTX 5080 Laptop에는 아래 CUDA 12.8 빌드를 먼저 설치합니다.
+평가 환경은 통합앱(gildongmu-app)의 실행 환경과 같게 유지합니다.
+Python 3.12.15, torch 2.14.0+cu130, ultralytics 8.4.152 등 앱의 `requirements.txt`와
+같은 버전입니다. 버전이 다르면 같은 코드라도 OCR·검출 결과가 달라집니다.
 
 ```bash
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install torch==2.7.1+cu128 torchvision==0.22.1+cu128 --index-url https://download.pytorch.org/whl/cu128
-.venv/bin/python -m pip install -e .
+UV_PYTHON_INSTALL_DIR=$PWD/.cache/python-runtime uv venv --python 3.12.15 --seed .venv
+uv pip install --python .venv/bin/python torch==2.14.0+cu130 torchvision==0.29.0+cu130 --index-url https://download.pytorch.org/whl/cu130
+uv pip install --python .venv/bin/python -r ../gildongmu-app/requirements.txt
+uv pip install --python .venv/bin/python -e .
 ```
+
+앱의 의존성 버전이 바뀌면 `pyproject.toml`도 같은 버전으로 바꾸고 이 환경을 다시 만듭니다.
 
 모델은 [PARSeq 공식 저장소](https://github.com/baudm/parseq)의
 `1902db043c029a7e03a3818c616c06600af574be` commit으로 고정했습니다.
@@ -134,5 +144,5 @@ CSV에 모인 crop을 평가하려면 다음을 실행합니다.
 파일 읽기·모델 다운로드·모델 로딩과 스마트폰 전송·음성 지연은 포함하지 않습니다.
 소수 crop에서 얻은 p95는 실시간 성능 보장이 아닙니다.
 
-현재 영상 평가의 분모와 한계는 [결과 문서](docs/RESULTS.md)에 정리했습니다.
+현재 영상 평가의 분모와 한계는 `workbench/README.md`에서 연결되는 로컬 보고서에 정리했습니다.
 정식 분석 결과는 `--output output/dataset1_20260916_run02`처럼 데이터셋·분석일·회차를 지정합니다.

@@ -1,5 +1,5 @@
 import unittest
-from bus_route.target import TargetMatcher,exact_route
+from bus_route.target import TargetMatcher,competing_route,exact_route
 
 
 def obs(text,score=.99,eligible=True):return {'text':text,'token_scores':[score]*(len(text)+1),'eligible':eligible}
@@ -51,14 +51,41 @@ class TargetTests(unittest.TestCase):
 
     def test_recent_7017_vetoes_7016_then_requires_fresh_full_evidence(self):
         m=TargetMatcher('7016',['7017']);m.update(1,0,[obs('7017')])
-        for i in range(1,7):self.assertEqual(m.update(1,i*.2,[obs('7016')])['state'],'conflict')
-        self.assertEqual(m.update(1,1.4,[obs('7016')])['state'],'matched_candidate')
+        # 경쟁 번호는 근거 창(2.0초) 동안 유지되고, 만료 후 새 전체 근거로 통과한다.
+        for i in range(1,11):self.assertEqual(m.update(1,i*.2,[obs('7016')])['state'],'conflict')
+        self.assertEqual(m.update(1,2.2,[obs('7016')])['state'],'matched_candidate')
 
     def test_continuing_similar_competitors_never_pass(self):
         m=TargetMatcher('7016',['7017'])
         for i in range(30):
             r=m.update(1,i*.2,[obs('7016' if i%2 else '7017')])
             self.assertNotEqual(r['state'],'matched_candidate')
+
+    def test_recent_longer_number_blocks_partial_led_match_on_same_track(self):
+        self.assertTrue(competing_route('606','60'))
+        self.assertTrue(competing_route('1714','14'))
+        self.assertFalse(competing_route('60','606'))
+        m=TargetMatcher('60',single_score=.98)
+        self.assertEqual(m.update(2,2.8,[obs('606')])['state'],'conflict')
+        for t in (3.2,3.4):
+            decision=m.update(2,t,[obs('60')])
+            self.assertEqual(decision['state'],'conflict')
+            self.assertEqual(decision['conflicts'],['606'])
+        self.assertEqual(m.update(3,3.4,[obs('60')])['state'],'recognized_single')
+        self.assertEqual(m.update(2,4.8,[obs('60')])['state'],'recognized_single')
+
+    def test_rare_full_long_number_remains_single_frame_evidence(self):
+        m=TargetMatcher('606',single_score=.98)
+        self.assertEqual(m.update(2,2.8,[obs('606')])['state'],'recognized_single')
+        self.assertEqual(m.update(2,3.2,[obs('60')])['state'],'partial')
+
+    def test_weak_extra_digit_does_not_discard_rare_full_target(self):
+        m=TargetMatcher('7024',single_score=.98)
+        m.update(1,0,[obs('17024',.89)])
+        self.assertEqual(m.update(1,.2,[obs('7024')])['state'],'recognized_single')
+        m=TargetMatcher('60',['606'],single_score=.98)
+        m.update(1,0,[obs('606',.8)])
+        self.assertEqual(m.update(1,.2,[obs('60')])['state'],'conflict')
 
     def test_single_weak_misread_requires_confident_distinguishing_digits(self):
         for distinguishing,expected in [(.99,'matched_candidate'),(.94,'conflict')]:
